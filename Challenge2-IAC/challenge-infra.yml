@@ -1,0 +1,124 @@
+Parameters:
+
+  EnvironmentName:
+    Description : An environment name would be prefixed to the resource names
+    Type: String
+    
+  VpcCIDR:
+    Description: VPC for Please enter the IP range (CIDR notation) for this VPC
+    Type: String
+    Default: 10.0.0.0/16
+
+  PublicSubnetCIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    Default: 10.0.1.0/24
+
+  PrivateSubnetCIDR:
+    Description: Please enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    Default: 10.0.2.0/24
+
+Resources:
+  ChallengeNetworkVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  CHNetworkMyInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: !Ref EnvironmentName
+
+  CHNetworkMyInternetGatewayandVpcAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref ChallengeNetworkVPC
+      InternetGatewayId: !Ref CHNetworkMyInternetGateway
+      
+
+  CHNetworkMyPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ChallengeNetworkVPC
+      AvailabilityZone: 'us-east-1a'
+      CidrBlock: !Ref PublicSubnetCIDR
+      MapPublicIpOnLaunch: True
+      Tags: 
+            - Key: Name 
+              Value: !Sub ${EnvironmentName} Public Subnet (AZ1)
+
+  CHNetworkMyPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref ChallengeNetworkVPC
+      AvailabilityZone: 'us-east-1b'
+      CidrBlock: !Ref PrivateSubnetCIDR
+      MapPublicIpOnLaunch: True
+      Tags: 
+            - Key: Name 
+              Value: !Sub ${EnvironmentName} Private Subnet (AZ1)
+
+  CHNetworkNatGatewayEIP:
+    Type: AWS::EC2::EIP
+    
+    Properties: 
+      Tags:
+      - Key: Name
+        Value: "Elastic IP Address"
+
+  CHNetworkNatGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt CHNetworkNatGatewayEIP.AllocationId
+      SubnetId: !Ref  CHNetworkMyPublicSubnet
+
+  CHNetworkPublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+        VpcId: !Ref ChallengeNetworkVPC
+        Tags: 
+            - Key: Name 
+              Value: !Sub ${EnvironmentName} Public Routes
+
+  CHNetworkDefaultPublicRoute: 
+    Type: AWS::EC2::Route
+    DependsOn: CHNetworkMyInternetGatewayandVpcAttachment
+    Properties: 
+        RouteTableId: !Ref CHNetworkPublicRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        GatewayId: !Ref CHNetworkMyInternetGateway
+    
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+        RouteTableId: !Ref CHNetworkPublicRouteTable
+        SubnetId: !Ref CHNetworkMyPublicSubnet
+
+  CHNetworkPrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties: 
+        VpcId: !Ref ChallengeNetworkVPC
+        Tags: 
+            - Key: Name 
+              Value: !Sub ${EnvironmentName} Private Routes
+
+  CHNetworkDefaultPrivateRoute: 
+    Type: AWS::EC2::Route
+    Properties: 
+        RouteTableId: !Ref CHNetworkPrivateRouteTable
+        DestinationCidrBlock: 0.0.0.0/0
+        NatGatewayId:
+          Ref: CHNetworkNatGateway
+  
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+        RouteTableId: !Ref CHNetworkPrivateRouteTable
+        SubnetId: !Ref CHNetworkMyPrivateSubnet
