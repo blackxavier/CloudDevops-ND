@@ -1,0 +1,11 @@
+[
+   
+      {
+        "ParameterKey": "AMItoUse",
+        "ParameterValue": "ami-047a51fa27710816e"
+      },
+      {
+        "ParameterKey":"EnvironmentName",
+        "ParameterValue":" UdacityCloudFormationChallenge1"
+    }
+]
